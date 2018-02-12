@@ -10,6 +10,12 @@
 using namespace std;
 
 
+__global__ 
+void bin(bool * graph, int V, int* color)
+{
+
+
+}
 
 void ReadColFile(const char filename[], bool** graph, int* V)
 {
@@ -69,5 +75,6 @@ int main(int argc, char* argv[])
    printf("Greedy coloring found solution with %d colors\n", CountColors(V, color));
    printf("Valid coloring: %d\n", IsValidColoring(graph, V, color));
 
+	
    return 0;
 }
