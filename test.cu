@@ -6,8 +6,10 @@
 #include <fstream>
 #include <iostream>
 #include <cstring>
+#include <queue>
+#include <device_vector.h>
 
-
+  //cudaMallocManaged(& bins, numC*numV*sizeof(int));
 
 __global__
 void makeBins(int * coloredGraph, int numV, int numC, std::queue<int>* bins)
@@ -19,6 +21,22 @@ void makeBins(int * coloredGraph, int numV, int numC, std::queue<int>* bins)
     bins[coloredGraph[i]].push(i);
   }
 }
+
+__global__
+void reduceBins(int * coloredGraph, int numV, int numC, std::queue<int> * bins, int threshold)
+{
+	int binIndex = blockIdx.x % numC;
+	std::queue<int> bin = bins[binIndex];
+	int iteration = 0;
+	while (iteration < threshold)
+	{	
+		int currentVertex = queue.pop();
+			
+
+	}	
+
+}
+
 
 int main(int argc, char const *argv[])
 {
@@ -32,9 +50,10 @@ int main(int argc, char const *argv[])
   }
 
 
-  std::queue<int> * bins;
-  cudaMallocManaged(& bins, numC*numV*sizeof(int));
   
+  std::queue<int>  bins [numC];
   makeBins<<<1,1>>>(coloredGraph, numV, numC, bins);
-  return 0;
+  
+//cudaFree(bins);  
+return 0;
 }
