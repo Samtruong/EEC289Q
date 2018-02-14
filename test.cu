@@ -61,16 +61,24 @@ void populateList(bool *graph, int numV)
 	}
 }
 __global__
-void reduceColors (bool *graph, int *coloredGraph, int numV, int numC, int numIterations)
+void reduceColors (bool *graph, int *coloredGraph, int numV, int numC, int numIterations, struct AdjList *list)
 {
 	for (int i = 0; i < numIterations; i++)
 	{
 		int vertex1 = rand();
 		int vertex2 = rand();
-		if (coloredGraph[vertex1] == coloredGraph[vertex2]
+		int vertex1Color = coloredGraph[vertex1];
+		struct AdjListNode *ptr = list[vertex2].head;
+		if (coloredGraph[vertex1] == coloredGraph[vertex2])
 			continue;
-		if (!graph[vertex1][vertex2])
+		if (!graph[vertex1*numV + vertex2])
 		{
+			//loop through all adjacent vertices of vertex 2 to determine if same color exists.
+			while (ptr -> next)
+			{
+				ptr = ptr -> next;
+				if (coloredGraph[ptr -> vertex] == vertex1Color) continue;
+			}	
 			if (coloredGraph[vertex1] < coloredGraph[vertex2])
 				coloredGraph[vertex2] = coloredGraph[vertex1];
 			else
