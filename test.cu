@@ -7,10 +7,11 @@
 #include <iostream>
 #include <cstring>
 #include <queue>
-#include <device_vector.h>
+//#include <device_vector.h>
 
   //cudaMallocManaged(& bins, numC*numV*sizeof(int));
 
+/*
 __global__
 void makeBins(int * coloredGraph, int numV, int numC, std::queue<int>* bins)
 {
@@ -21,7 +22,64 @@ void makeBins(int * coloredGraph, int numV, int numC, std::queue<int>* bins)
     bins[coloredGraph[i]].push(i);
   }
 }
+*/
 
+struct AdjListNode {
+	int vertex;
+	struct AdjListNode * next;
+};
+
+struct AdjList {
+	struct AdjListNode * head;
+};
+
+struct AdjListNode* newAdjListNode(int vertex)
+{
+	struct AdjListNode * newNode = (struct AdjListNode * ) malloc(sizeof(struct AdjListNode));
+	newNode -> vertex = vertex;
+	newNode -> next = NULL;
+	return newNode;
+};
+
+void populateList(bool *graph, int numV)
+{
+	struct AdjList list[numV];
+	for (int i = 0; i < numV; i++)
+	{
+		for (int j = 0; j < numV; i++)
+		{
+			if (graph[i*numV + j])
+			{
+				struct AdjListNode* ptr = list[i].head;
+				while (ptr -> next)
+					ptr = ptr -> next;
+				ptr -> next = newAdjListNode(j);
+			}
+
+		}
+
+	}
+}
+__global__
+void reduceColors (bool *graph, int *coloredGraph, int numV, int numC, int numIterations)
+{
+	for (int i = 0; i < numIterations; i++)
+	{
+		int vertex1 = rand();
+		int vertex2 = rand();
+		if (coloredGraph[vertex1] == coloredGraph[vertex2]
+			continue;
+		if (!graph[vertex1][vertex2])
+		{
+			if (coloredGraph[vertex1] < coloredGraph[vertex2])
+				coloredGraph[vertex2] = coloredGraph[vertex1];
+			else
+				coloredGraph[vertex1] = coloredGraph[vertex2];
+		}
+	}
+}
+
+/*
 __global__
 void reduceBins(int * coloredGraph, int numV, int numC, std::queue<int> * bins, int threshold)
 {
@@ -36,7 +94,7 @@ void reduceBins(int * coloredGraph, int numV, int numC, std::queue<int> * bins, 
 	}	
 
 }
-
+*/
 
 int main(int argc, char const *argv[])
 {
