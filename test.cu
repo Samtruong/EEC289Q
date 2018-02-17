@@ -7,6 +7,9 @@
 #include <iostream>
 #include <cstring>
 #include <queue>
+
+using namespace std;
+
 //#include <device_vector.h>
 
   //cudaMallocManaged(& bins, numC*numV*sizeof(int));
@@ -60,6 +63,7 @@ void populateList(bool *graph, int numV)
 
 	}
 }
+/*
 __global__
 void reduceColors (bool *graph, int *coloredGraph, int numV, int numC, int numIterations, struct AdjList *list)
 {
@@ -86,6 +90,7 @@ void reduceColors (bool *graph, int *coloredGraph, int numV, int numC, int numIt
 		}
 	}
 }
+*/
 
 /*
 __global__
@@ -104,8 +109,57 @@ void reduceBins(int * coloredGraph, int numV, int numC, std::queue<int> * bins, 
 }
 */
 
-int main(int argc, char const *argv[])
+void ReadColFile(const char filename[], bool** graph, int* V)
 {
+   string line;
+   ifstream infile(filename);
+   if (infile.fail()) {
+      printf("Failed to open %s\n", filename);
+      return;
+   }
+
+   int num_rows, num_edges;
+
+   while (getline(infile, line)) {
+      istringstream iss(line);
+      string s;
+      int node1, node2;
+      iss >> s;
+      if (s == "p") {
+         iss >> s; // read string "edge"
+         iss >> num_rows;
+         iss >> num_edges;
+         *V = num_rows;
+         *graph = new bool[num_rows * num_rows];
+         memset(*graph, 0, num_rows * num_rows * sizeof(bool));
+         continue;
+      } else if (s != "e")
+         continue;
+
+      iss >> node1 >> node2;
+
+      // Assume node numbering starts at 1
+      (*graph)[(node1 - 1) * num_rows + (node2 - 1)] = true;
+      (*graph)[(node2 - 1) * num_rows + (node1 - 1)] = true;
+   }
+   infile.close();
+}
+
+
+
+int main(int argc, char *argv[])
+{
+
+  bool *graph;
+  int V;
+  int *color;
+
+   if (string(argv[1]).find(".col") != string::npos)
+      ReadColFile(argv[1], &graph, &V);
+  else
+  	return -1;
+//Code to make random graph
+/*
   const int numV = 10;
   const int numC = 5;
   int coloredGraph[numV];
@@ -114,11 +168,13 @@ int main(int argc, char const *argv[])
   {
     coloredGraph[i] = rand() % 1000 + 1;
   }
+*/
 
 
   
-  std::queue<int>  bins [numC];
-  makeBins<<<1,1>>>(coloredGraph, numV, numC, bins);
+  //std::queue<int>  bins [numC];
+
+  //makeBins<<<1,1>>>(coloredGraph, numV, numC, bins);
   
 //cudaFree(bins);  
 return 0;
