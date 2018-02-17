@@ -6,49 +6,77 @@
 #include <fstream>
 #include <iostream>
 #include <cstring>
+#include <thrust/scan.h>
 
 using namespace std;
-__global__ // number of threads must be V/2
-void BlockScan(bool* h_row, int V)
+// int index = threadIdx.x + blockIdx.x * blockDim.x;
+// int stride = blockDim.x * gridDim.x;
+// for(int i = index ; i < V ; i+=stride)
+__global__ Scan(bool* h_graph, int V)
 {
-  extern __share__ int d_row[];
-  d_row[2*threadIdx.x] = h_row[2*threadIdx.x];
-  d_row[2*threadIdx.x + 1] = h_row[2*threadIdx.x + 1];
-  offset = 1;
-//WALK TO ROOT
-  for(int layer = V/2; layer > 0; layer/=2)
-  {
-    __syncthread();
-    if(thread.x < layer)
-    {
-      int leftHandSide = offset*(2*threadIdx.x+1)-1;
-      int rightHandSide = offset*(2*threadIdx.x+2)-1;
 
-      d_row[rightHandSide] += d_row[leftHandSide];
-    }
-    offset*=2;
-  }
-//WALK FROM ROOT
-  if (threadIdx.x == 0){d_row[V-1] = 0;}
-  for(int layer = 1; layer < V; layer*=2)
-  {
-    offset /= 2;
-    __syncthread();
-    if(threadIdx < layer)
-    {
-      int leftHandSide = offset*(2*threadIdx.x + 1)-1;
-      int rightHandSide = offset*(2*threadIdx.x +2)-1;
-      int holder = d_row[leftHandSide];
-      d_row[leftHandSide] = d_row[rightHandSide];
-      d_row[rightHandSide] += holder;
-    }
-  }
-  __syncthread();
-
-//RETURN RESULT
-  h_row[2*threadIdx.x] = d_row[2*threadIdx.x];
-  h_row[2*threadIdx.x + 1] = d_row[2*threadIdx.x + 1];
 }
+// __global__ // number of threads must be V/2
+// void BlockScan(bool* h_row, int V)
+// {
+//   extern __share__ int d_row[];
+//   int ID = threadIdx.x;
+//   int offset = 1;// helps point to the next data element in next step
+//
+//   //with bank conflict:
+//   // d_row[2*ID] = h_row[2*threadIdx.x];
+//   // d_row[2*threadIdx.x + 1] = h_row[2*threadIdx.x + 1];
+//
+//   //without bank conflict: Load in shared memory
+//   d_row[ID + blockDim.x] = h_row[ID + blockDim.x];
+//   d_row[ID] = h_row[ID];
+//
+// //============================WALK TO ROOT======================================
+// // walk up until you are root
+//   __syncthread();
+//   for(int layer = V/2; layer > 0; layer/=2)
+//   {
+//     if(ID < layer) // number of threads gets halfed every step
+//     {
+//       int leftHandSide = offset*(2*ID+1)-1;
+//       int rightHandSide = offset*(2*ID+2)-1;
+//       //produce partial sum:
+//       d_row[rightHandSide] += d_row[leftHandSide];
+//     }
+//     offset*=2;
+//     __syncthread();
+//   }
+// //end for loop
+// //===========================WALK FROM ROOT=====================================
+// //walk down until you are at Vth layer
+//   if (ID == 0){d_row[V-1] = 0;} // replace the last element with 0
+//   for(int layer = 1; layer < V; layer*=2)
+//   {
+//     offset /= 2;
+//     __syncthread();
+//     if(ID < layer)
+//     {
+//       int leftHandSide = offset*(2*ID + 1)-1;
+//       int rightHandSide = offset*(2*ID +2)-1;
+//       int holder = d_row[leftHandSide]; //copy the right element
+//       d_row[leftHandSide] = d_row[rightHandSide];
+//       //produce partial sum:
+//       d_row[rightHandSide] += holder;
+//     }
+//   }
+// //end for loop
+//   __syncthread();
+//
+// //RETURN RESULT
+//
+// //with bank conflict
+//   // h_row[2*ID] = d_row[2*ID];
+//   // h_row[2*ID + 1] = d_row[2*ID + 1];
+//
+// //without bank conflict, loading back to global memory:
+//   h_row[ID] = d_row[ID];
+//   h_row[ID + blockDim.x] = d_row[ID + blockDim.x];
+// }
 
 //================================Utility Functions=======================================
 
@@ -124,6 +152,7 @@ int main(int argc, char* argv[])
    // GreedyColoring(graph, V, &color);
    // printf("Greedy coloring found solution with %d colors\n", CountColors(V, color));
    // printf("Valid coloring: %d\n", IsValidColoring(graph, V, color));
+
    PrintMatrix(graph,V,V);
    return 0;
 }
