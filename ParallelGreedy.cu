@@ -12,10 +12,8 @@ using namespace std;
 // int index = threadIdx.x + blockIdx.x * blockDim.x;
 // int stride = blockDim.x * gridDim.x;
 // for(int i = index ; i < V ; i+=stride)
-__global__ Scan(bool* h_graph, int V)
-{
 
-}
+
 // __global__ // number of threads must be V/2
 // void BlockScan(bool* h_row, int V)
 // {
@@ -77,7 +75,13 @@ __global__ Scan(bool* h_graph, int V)
 //   h_row[ID] = d_row[ID];
 //   h_row[ID + blockDim.x] = d_row[ID + blockDim.x];
 // }
-
+void SerialThrust(bool* h_graph, int V)
+{
+  for(int row = 0; row < V; row++)
+  {
+    thrust::exclusive_scan(h_graph[V*row],h_graph[V*row + V],h_graph[V*row]);
+  }
+}
 //================================Utility Functions=======================================
 
 //Load raw .co data
