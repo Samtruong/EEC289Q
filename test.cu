@@ -103,7 +103,7 @@ void reduceColors (bool *graph, int *coloredGraph, int numV, int numIterations, 
 
 		int vertex1 = curand(&state) % numV;
 		int vertex2 = curand(&state) % numV;
-		printf("vertex1 %d", vertex1);
+		
 		//int vertex1 = rand();
 		//int vertex2 = rand();
 		int vertex1Color = coloredGraph[vertex1];
@@ -126,6 +126,7 @@ void reduceColors (bool *graph, int *coloredGraph, int numV, int numIterations, 
 				coloredGraph[vertex1] = coloredGraph[vertex2];
 		}
 	}
+
 }
 
 
@@ -157,7 +158,8 @@ void ReadColFile(const char filename[], bool** graph, int* V)
 
    int num_rows, num_edges;
 
-   while (getline(infile, line)) {
+   while (getline(infile, line)) 
+   {
       istringstream iss(line);
       string s;
       int node1, node2;
@@ -197,17 +199,23 @@ int main(int argc, char *argv[])
   int V;
   int *color;
 
-  color = new int[V];
+  
 
    if (string(argv[1]).find(".col") != string::npos)
       ReadColFile(argv[1], &graph, &V);
   else
   	return -1;
+  color = new int[V];
 
   AdjList * list = populateList(graph, V);
   //printList(list, V);
   trivialColor(color, V);
   reduceColors<<<1, 1>>>(graph, color, V, 1000, list, time(NULL));
+
+ for(int i = 0; i <  V; i++)
+  {
+    cout << i << "  " << color[i] << endl;
+   }
 
 //Code to make random graph
 /*
@@ -215,10 +223,7 @@ int main(int argc, char *argv[])
   const int numC = 5;
   int coloredGraph[numV];
 
-  for(int i = 0; i <  numV; i++)
-  {
-    coloredGraph[i] = rand() % 1000 + 1;
-  }
+ 
 */
 
 
