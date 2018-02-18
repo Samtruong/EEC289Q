@@ -6,7 +6,8 @@
 #include <fstream>
 #include <iostream>
 #include <cstring>
-#include <queue>
+#include <curand.h>
+#include <curand_kernel.h>
 
 using namespace std;
 
@@ -91,20 +92,28 @@ void printList (struct AdjList * list, int numV)
         printf("\n");
 	}
 }
-/*
+
 __global__
-void reduceColors (bool *graph, int *coloredGraph, int numV, int numC, int numIterations, struct AdjList *list)
+void reduceColors (bool *graph, int *coloredGraph, int numV, int numIterations, struct AdjList *list, unsigned int seed)
 {
 	for (int i = 0; i < numIterations; i++)
 	{
-		int vertex1 = rand();
-		int vertex2 = rand();
+		curandState_t state;
+		curand_init(seed, 0, 1, &state);
+
+		int vertex1 = curand(&state) % numV;
+		int vertex2 = curand(&state) % numV;
+		printf("vertex1 %d", vertex1);
+		//int vertex1 = rand();
+		//int vertex2 = rand();
 		int vertex1Color = coloredGraph[vertex1];
-		struct AdjListNode *ptr = list[vertex2].head;
 		if (coloredGraph[vertex1] == coloredGraph[vertex2])
 			continue;
+		
+
 		if (!graph[vertex1*numV + vertex2])
 		{
+			struct AdjListNode *ptr = list[vertex2].head;
 			//loop through all adjacent vertices of vertex 2 to determine if same color exists.
 			while (ptr -> next)
 			{
@@ -118,7 +127,7 @@ void reduceColors (bool *graph, int *coloredGraph, int numV, int numC, int numIt
 		}
 	}
 }
-*/
+
 
 /*
 __global__
@@ -198,6 +207,7 @@ int main(int argc, char *argv[])
   AdjList * list = populateList(graph, V);
   //printList(list, V);
   trivialColor(color, V);
+  reduceColors<<<1, 1>>>(graph, color, V, 1000, list, time(NULL));
 
 //Code to make random graph
 /*
