@@ -38,29 +38,57 @@ struct AdjList {
 
 struct AdjListNode* newAdjListNode(int vertex)
 {
-	struct AdjListNode * newNode = (struct AdjListNode * ) malloc(sizeof(struct AdjListNode));
+	struct AdjListNode * newNode = new AdjListNode;
 	newNode -> vertex = vertex;
 	newNode -> next = NULL;
 	return newNode;
 };
 
-void populateList(bool *graph, int numV)
+struct AdjList*  populateList(bool *graph, int numV)
 {
-	struct AdjList list[numV];
+	struct AdjList * list =  new AdjList[numV ];
+	struct AdjListNode * node;
 	for (int i = 0; i < numV; i++)
 	{
-		for (int j = 0; j < numV; i++)
+		node = newAdjListNode(i + 1);
+		node -> next = NULL;
+		list[i].head = node;
+		
+	}
+	//struct AdjList list[numV];
+	for (int i = 0; i < numV; i++)
+	{
+		for (int j = 0; j < numV ; j++)
 		{
 			if (graph[i*numV + j])
 			{
-				struct AdjListNode* ptr = list[i].head;
-				while (ptr -> next)
-					ptr = ptr -> next;
-				ptr -> next = newAdjListNode(j);
+				//cout << i + 1 << " and " << j+1 << " are connected. " << endl;
+				struct AdjListNode * toAdd = newAdjListNode(j + 1);
+				toAdd -> next = NULL;
+				struct AdjListNode * newNode = list[i].head;
+				while (newNode -> next)
+					newNode = newNode -> next;
+				newNode -> next = toAdd;
+
 			}
 
 		}
 
+	}
+	return list;
+}
+
+void printList (struct AdjList * list, int numV)
+{
+	for (int i = 0; i < numV; i++)
+	{
+		struct AdjListNode* pCrawl = list[i].head;
+        printf("\n Adjacency list of vertex %d\n head ", i + 1);
+        while (pCrawl) {
+            printf("-> %d", pCrawl->vertex);
+            pCrawl = pCrawl->next;
+        }
+        printf("\n");
 	}
 }
 /*
@@ -158,6 +186,9 @@ int main(int argc, char *argv[])
       ReadColFile(argv[1], &graph, &V);
   else
   	return -1;
+
+  AdjList * list = populateList(graph, V);
+  printList(list, V);
 //Code to make random graph
 /*
   const int numV = 10;
