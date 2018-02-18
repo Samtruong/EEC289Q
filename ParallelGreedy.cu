@@ -75,17 +75,17 @@ using namespace std;
 //   h_row[ID] = d_row[ID];
 //   h_row[ID + blockDim.x] = d_row[ID + blockDim.x];
 // }
-void SerialThrust(bool* h_graph, int V)
+void SerialThrust(int* h_graph, int V)
 {
   for(int row = 0; row < V; row++)
   {
-    thrust::exclusive_scan(h_graph[V*row],h_graph[V*row + V],h_graph[V*row]);
+    thrust::exclusive_scan(&h_graph[V*row],&h_graph[V*row + V],&h_graph[V*row]);
   }
 }
 //================================Utility Functions=======================================
 
 //Load raw .co data
-void ReadColFile(const char filename[], bool** graph, int* V)
+void ReadColFile(const char filename[], int** graph, int* V)
 {
    string line;
    ifstream infile(filename);
@@ -106,8 +106,8 @@ void ReadColFile(const char filename[], bool** graph, int* V)
          iss >> num_rows;
          iss >> num_edges;
          *V = num_rows;
-         *graph = new bool[num_rows * num_rows];
-         memset(*graph, 0, num_rows * num_rows * sizeof(bool));
+         *graph = new int[num_rows * num_rows];
+         memset(*graph, 0, num_rows * num_rows * sizeof(int));
          continue;
       } else if (s != "e")
          continue;
@@ -115,14 +115,14 @@ void ReadColFile(const char filename[], bool** graph, int* V)
       iss >> node1 >> node2;
 
       // Assume node numbering starts at 1
-      (*graph)[(node1 - 1) * num_rows + (node2 - 1)] = true;
-      (*graph)[(node2 - 1) * num_rows + (node1 - 1)] = true;
+      (*graph)[(node1 - 1) * num_rows + (node2 - 1)] = 1;
+      (*graph)[(node2 - 1) * num_rows + (node1 - 1)] = 1;
    }
    infile.close();
 }
 
 //print graph Matrix
-void PrintMatrix(bool* matrix, int M, int N) {
+void PrintMatrix(int* matrix, int M, int N) {
    for (int row=0; row<M; row++)
    {
       for(int columns=0; columns<N; columns++)
@@ -138,7 +138,7 @@ void PrintMatrix(bool* matrix, int M, int N) {
 
 int main(int argc, char* argv[])
 {
-   bool* graph;
+   int* graph;
    int V;
    //int* color;
 
@@ -156,7 +156,12 @@ int main(int argc, char* argv[])
    // GreedyColoring(graph, V, &color);
    // printf("Greedy coloring found solution with %d colors\n", CountColors(V, color));
    // printf("Valid coloring: %d\n", IsValidColoring(graph, V, color));
-
+   cout<<"Original Graph"<<endl;
    PrintMatrix(graph,V,V);
+   SerialThrust(graph,V);
+
+   cout<<"Scan Graph"<<endl;
+   PrintMatrix(graph,V,V);
+
    return 0;
 }
