@@ -173,7 +173,13 @@ void ReadColFile(const char filename[], bool** graph, int* V)
    infile.close();
 }
 
-
+void trivialColor(int * color, int V)
+{
+	for (int i = 0; i < V; i++)
+	{
+		color[i] = i;
+	}
+}
 
 int main(int argc, char *argv[])
 {
@@ -182,13 +188,17 @@ int main(int argc, char *argv[])
   int V;
   int *color;
 
+  color = new int[V];
+
    if (string(argv[1]).find(".col") != string::npos)
       ReadColFile(argv[1], &graph, &V);
   else
   	return -1;
 
   AdjList * list = populateList(graph, V);
-  printList(list, V);
+  //printList(list, V);
+  trivialColor(color, V);
+
 //Code to make random graph
 /*
   const int numV = 10;
