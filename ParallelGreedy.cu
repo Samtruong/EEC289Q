@@ -7,90 +7,34 @@
 #include <iostream>
 #include <cstring>
 #include <thrust/scan.h>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
 
 using namespace std;
-// int index = threadIdx.x + blockIdx.x * blockDim.x;
-// int stride = blockDim.x * gridDim.x;
-// for(int i = index ; i < V ; i+=stride)
 
-
-// __global__ // number of threads must be V/2
-// void BlockScan(bool* h_row, int V)
-// {
-//   extern __share__ int d_row[];
-//   int ID = threadIdx.x;
-//   int offset = 1;// helps point to the next data element in next step
-//
-//   //with bank conflict:
-//   // d_row[2*ID] = h_row[2*threadIdx.x];
-//   // d_row[2*threadIdx.x + 1] = h_row[2*threadIdx.x + 1];
-//
-//   //without bank conflict: Load in shared memory
-//   d_row[ID + blockDim.x] = h_row[ID + blockDim.x];
-//   d_row[ID] = h_row[ID];
-//
-// //============================WALK TO ROOT======================================
-// // walk up until you are root
-//   __syncthread();
-//   for(int layer = V/2; layer > 0; layer/=2)
-//   {
-//     if(ID < layer) // number of threads gets halfed every step
-//     {
-//       int leftHandSide = offset*(2*ID+1)-1;
-//       int rightHandSide = offset*(2*ID+2)-1;
-//       //produce partial sum:
-//       d_row[rightHandSide] += d_row[leftHandSide];
-//     }
-//     offset*=2;
-//     __syncthread();
-//   }
-// //end for loop
-// //===========================WALK FROM ROOT=====================================
-// //walk down until you are at Vth layer
-//   if (ID == 0){d_row[V-1] = 0;} // replace the last element with 0
-//   for(int layer = 1; layer < V; layer*=2)
-//   {
-//     offset /= 2;
-//     __syncthread();
-//     if(ID < layer)
-//     {
-//       int leftHandSide = offset*(2*ID + 1)-1;
-//       int rightHandSide = offset*(2*ID +2)-1;
-//       int holder = d_row[leftHandSide]; //copy the right element
-//       d_row[leftHandSide] = d_row[rightHandSide];
-//       //produce partial sum:
-//       d_row[rightHandSide] += holder;
-//     }
-//   }
-// //end for loop
-//   __syncthread();
-//
-// //RETURN RESULT
-//
-// //with bank conflict
-//   // h_row[2*ID] = d_row[2*ID];
-//   // h_row[2*ID + 1] = d_row[2*ID + 1];
-//
-// //without bank conflict, loading back to global memory:
-//   h_row[ID] = d_row[ID];
-//   h_row[ID + blockDim.x] = d_row[ID + blockDim.x];
-// }
-__global__ RandomizedParallelGreedy(int** graph, int** solutions)
-{
-  
-}
-void SerialThrust(int* h_graph, int V)
+void SerialThrust(int* h_graph, int* dimension, int V)
 {
   for(int row = 0; row < V; row++)
   {
     thrust::exclusive_scan(&h_graph[V*row],&h_graph[V*row + V],&h_graph[V*row]);
+    dimension[row] = h_graph[V*row + V -1]+1;
   }
 }
 
+__global__ void ParallelThrust(int* h_graph, int* dimension, int V)
+{
+  int index = threadIdx.x + blockDim.x * blockIdx.x;
+  int stride = blockDim.x * gridDim.x;
+  for(int i = index; index < V*V; index += stride)
+  {
+    thrust::exclusive_scan(thrust::device,&h_graph[i*V],&h_graph[i*V+V],&h_graph[i*V]);
+  }
+}
 //================================Utility Functions=======================================
 
 //Load raw .co data
-void ReadColFile(const char filename[], int** graph, int* V)
+void getDimension(const char filename[], int* V)
 {
    string line;
    ifstream infile(filename);
@@ -99,29 +43,45 @@ void ReadColFile(const char filename[], int** graph, int* V)
       return;
    }
 
-   int num_rows, num_edges;
+   int num_rows;
+
+   while (getline(infile, line))
+   {
+      istringstream iss(line);
+      string s;
+      iss >> s;
+      if (s == "p") {
+         iss >> s; // read string "edge"
+         iss >> num_rows;
+         *V = num_rows;
+         break;
+      }
+   }
+   infile.close();
+}
+
+void ReadColFile(const char filename[], int* graph, int V)
+{
+   string line;
+   ifstream infile(filename);
+   if (infile.fail()) {
+      printf("Failed to open %s\n", filename);
+      return;
+   }
 
    while (getline(infile, line)) {
       istringstream iss(line);
       string s;
       int node1, node2;
       iss >> s;
-      if (s == "p") {
-         iss >> s; // read string "edge"
-         iss >> num_rows;
-         iss >> num_edges;
-         *V = num_rows;
-         *graph = new int[num_rows * num_rows];
-         memset(*graph, 0, num_rows * num_rows * sizeof(int));
-         continue;
-      } else if (s != "e")
+      if (s != "e")
          continue;
 
       iss >> node1 >> node2;
 
       // Assume node numbering starts at 1
-      (*graph)[(node1 - 1) * num_rows + (node2 - 1)] = 1;
-      (*graph)[(node2 - 1) * num_rows + (node1 - 1)] = 1;
+      (graph)[(node1 - 1) * V + (node2 - 1)] = 1;
+      (graph)[(node2 - 1) * V + (node1 - 1)] = 1;
    }
    infile.close();
 }
@@ -143,28 +103,28 @@ void PrintMatrix(int* matrix, int M, int N) {
 
 int main(int argc, char* argv[])
 {
-   int* graph;
+   int* h_graph;
    int V;
    //int* color;
-
    if (string(argv[1]).find(".col") != string::npos)
-      ReadColFile(argv[1], &graph, &V);
+   {
+     getDimension(argv[1], &V);
+     cudaMallocManaged(&h_graph,sizeof(int)*V*V);
+     ReadColFile(argv[1],h_graph,V);
+   }
    //else if (string(argv[1]).find(".mm") != string::npos)
       //ReadMMFile(argv[1], &graph, &V);
    else
       return -1;
 
- //  GraphColoring(graph, V, &color);
- //  printf("Brute-foce coloring found solution with %d colors\n", CountColors(V, color));
- //  printf("Valid coloring: %d\n", IsValidColoring(graph, V, color));
 
-   // GreedyColoring(graph, V, &color);
-   // printf("Greedy coloring found solution with %d colors\n", CountColors(V, color));
-   // printf("Valid coloring: %d\n", IsValidColoring(graph, V, color));
-   // cout<<"Original Graph"<<endl;
-   // PrintMatrix(graph,V,V);
-   SerialThrust(graph,V);
-   // cout<<"Scan Graph"<<endl;
-   // PrintMatrix(graph,V,V);
+   int dimension[V];
+   ParallelThrust<<<V,V>>>(h_graph,dimension,V);
+   cudaDeviceSynchronize();
+   cout<<"Scan Graph"<<endl;
+   PrintMatrix(h_graph,V,V);
+   // cout<<"dimension"<<endl;
+   // PrintMatrix(dimension,1,V);
+   cudaFree(h_graph);
    return 0;
 }
