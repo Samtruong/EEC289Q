@@ -101,18 +101,26 @@ void reduceColors (bool *graph, int *coloredGraph, int numV, int numIterations, 
 		curandState_t state;
 		curand_init(seed, 0, 1, &state);
 
-		int vertex1 = curand(&state) % numV;
-		int vertex2 = curand(&state) % numV;
-		
+		int vertex1 = 0; //curand(&state) % numV;
+		int vertex2 = 2; //curand(&state) % numV;
+		printf("vertex1 %i vertex 2 %i     \n", vertex1, vertex2);	
+		printf("hello\n");
 		//int vertex1 = rand();
 		//int vertex2 = rand();
 		int vertex1Color = coloredGraph[vertex1];
+		printf("vertex 1 color %i   \n", vertex1Color);
+
 		if (coloredGraph[vertex1] == coloredGraph[vertex2])
+		{
+			printf("colors equal\n");
 			continue;
+		}
+			
 		
 
 		if (!graph[vertex1*numV + vertex2])
 		{
+			printf("changing color \n");
 			struct AdjListNode *ptr = list[vertex2].head;
 			//loop through all adjacent vertices of vertex 2 to determine if same color exists.
 			while (ptr -> next)
@@ -210,8 +218,8 @@ int main(int argc, char *argv[])
   AdjList * list = populateList(graph, V);
   //printList(list, V);
   trivialColor(color, V);
-  reduceColors<<<1, 1>>>(graph, color, V, 1000, list, time(NULL));
-
+  reduceColors<<<1, 1>>>(graph, color, V, 1, list, time(NULL));
+  cudaDeviceSynchronize();
  for(int i = 0; i <  V; i++)
   {
     cout << i << "  " << color[i] << endl;
