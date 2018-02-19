@@ -75,6 +75,10 @@ using namespace std;
 //   h_row[ID] = d_row[ID];
 //   h_row[ID + blockDim.x] = d_row[ID + blockDim.x];
 // }
+__global__ RandomizedParallelGreedy(int** graph, int** solutions)
+{
+  
+}
 void SerialThrust(int* h_graph, int V)
 {
   for(int row = 0; row < V; row++)
@@ -82,6 +86,7 @@ void SerialThrust(int* h_graph, int V)
     thrust::exclusive_scan(&h_graph[V*row],&h_graph[V*row + V],&h_graph[V*row]);
   }
 }
+
 //================================Utility Functions=======================================
 
 //Load raw .co data
@@ -156,12 +161,10 @@ int main(int argc, char* argv[])
    // GreedyColoring(graph, V, &color);
    // printf("Greedy coloring found solution with %d colors\n", CountColors(V, color));
    // printf("Valid coloring: %d\n", IsValidColoring(graph, V, color));
-   cout<<"Original Graph"<<endl;
-   PrintMatrix(graph,V,V);
+   // cout<<"Original Graph"<<endl;
+   // PrintMatrix(graph,V,V);
    SerialThrust(graph,V);
-
-   cout<<"Scan Graph"<<endl;
-   PrintMatrix(graph,V,V);
-
+   // cout<<"Scan Graph"<<endl;
+   // PrintMatrix(graph,V,V);
    return 0;
 }
