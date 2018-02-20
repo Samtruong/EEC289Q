@@ -99,7 +99,7 @@ printf("2\n");
   int length = dimension[V - 1] + address[V - 1]; //length of h_graph;
 
   //copy to shared memory:
-  //for(int i = index; i < length; i+= stride){d_graph[i] = h_graph[i];}
+  for(int i = index; i < length; i+= stride){d_graph[i] = h_graph[i];}
   __syncthreads();
 printf("3\n");
 /*
@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
    dimension[0]=2; dimension[1]=3; dimension[2] = 3; dimension[3]=2;
    address[0]=0; address[1]=2; address[2]=5; address[3]=8;
 
-   //ParallelThrust<<<V,V>>>(h_graph,dimension,V);
+   ParallelThrust<<<V,V>>>(h_graph,dimension,V);
    cudaDeviceSynchronize();
 
    thrust::exclusive_scan(&dimension[0],&dimension[V], address);
