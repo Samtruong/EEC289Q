@@ -57,12 +57,29 @@ __global__ void PermutationGenerator(int V, int*result, int numVersion, int shuf
     }
   }
 }
+
+__device__ void Color(int* h_graph, int curVertex, int a, int d, int* result)
+{
+  //int result[curVertex] = 1;
+  int color = 1;
+  for (int i = 0; i < d; i++)
+  {
+    if (color == result[h_graph[a + i]])
+    {
+      i = 0;
+      color ++;
+      continue;
+    }
+  }
+  result[curVertex] = color;
+
+}
 __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
-                       int* address, int* sequence,int V, int* result)
+                 int* address, int* sequence,int V, int numVersion, int* result)
 {
   int index = threadIdx.x + blockDim.x * blockIdx.x;
   int stride = blockDim.x * gridDim.x;
-  extern int sequence[];
+  int a,d;
 
   __shared__ int* d_graph;
   __shared__ int* d_dimension;
@@ -82,7 +99,17 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
   __syncthreads();
   //end copy to shared memory
 
-  for(int j = index, j < )
+  for(int j = index; j < numVersion; j +=stride)
+  {
+    int startingPoint = index*V+1;
+    for(int k = 0; k < V; k++)
+    {
+      a = d_address[startingPoint+k];
+      d = d_dimension[startingPoint+k];
+      Color(h_graph, startingPoint+k, a, d, result);
+      __syncthreads();
+    }
+  }
 }
 //================================Utility Functions=======================================
 
@@ -156,10 +183,16 @@ void PrintMatrix(int* matrix, int M, int N) {
 
 int main(int argc, char* argv[])
 {
-   int* h_graph,sequence,dimension;
+   int* h_graph;
+   int * sequence;
+   int * dimension;
+   int * address;
+   int * result; //Added
    int V,numVersion;
-   numversion = 100;
+
+   numVersion = 100;
    //int* color;
+
    if (string(argv[1]).find(".col") != string::npos)
    {
      getDimension(argv[1], &V);
@@ -171,14 +204,16 @@ int main(int argc, char* argv[])
    else
       return -1;
 
-   cudaMallocManaged(&sequence,sizeof(int)*V*numVersion);
+  cudaMallocManaged(&sequence, sizeof(int) * V * numVersion);
    cudaMallocManaged(&dimension,sizeof(int)*V);
-
+   cudaMallocManaged(&address,sizeof(int)*V);
+   cudaMallocManaged(&result, sizeof(int) *V*numVersion);
    ParallelThrust<<<V,V>>>(h_graph,dimension,V);
    cudaDeviceSynchronize();
-   PermutationGenerator<<<256,1024>>>(V,sequence,numVersion,V)
+   thrust::exclusive_scan(&dimension[0],&dimension[V], address);
+   PermutationGenerator<<<256,1024>>>(V,sequence,numVersion,V);
    cudaDeviceSynchronize();
-   RandomizedParallelGreedy<<<>>>();
+   RandomizedParallelGreedy<<<1,1>>>(h_graph, dimension, address, sequence, V, numVersion, result);
    cudaDeviceSynchronize();
    // cout<<"Scan Graph"<<endl;
    // PrintMatrix(h_graph,V,V);
