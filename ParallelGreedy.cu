@@ -155,20 +155,24 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
   }
 }
 //================================Utility Functions=======================================
-__host__ __device__
-int CountColors(int V, int* color)
+void CountColors(int V,int length, int* color)
 {
    int num_colors = 0;
    set<int> seen_colors;
 
-   for (int i = 0; i < V; i++) {
-      if (seen_colors.find(color[i]) == seen_colors.end()) {
+   for (int i = 0; i < length; i++) {
+      if (seen_colors.find(color[i]) == seen_colors.end())
+      {
          seen_colors.insert(color[i]);
          num_colors++;
       }
+      if(i%V==V-1)
+      {
+        cout<<num_colors<<endl;
+        seen_colors.clear();
+        num_colors = 0;
+      }
    }
-
-   return num_colors;
 }
 
 //Load raw .co data
@@ -316,7 +320,7 @@ int main(int argc, char* argv[])
     cout << result[i] << " ";
     if(i%V == V-1){cout<<endl;}
    }
-
+   CountColors(V,V*numVersion,result);
    cudaFree(h_graph);
    cudaFree(dimension);
    cudaFree(sequence);
