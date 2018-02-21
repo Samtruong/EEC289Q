@@ -115,7 +115,7 @@ void reduceColors (bool *graph, int *coloredGraph, int numV, int numIterations, 
 			printf("colors equal\n");
 			continue;
 		}
-			
+			printf("vertex 1 color %i   \n", vertex1Color);
 		
 
 		if (!graph[vertex1*numV + vertex2])
@@ -216,9 +216,10 @@ int main(int argc, char *argv[])
   color = new int[V];
 
   AdjList * list = populateList(graph, V);
-  //printList(list, V);
+  printList(list, V);
   trivialColor(color, V);
   reduceColors<<<1, 1>>>(graph, color, V, 1, list, time(NULL));
+  
   cudaDeviceSynchronize();
  for(int i = 0; i <  V; i++)
   {

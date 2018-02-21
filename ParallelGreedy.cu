@@ -69,11 +69,18 @@ __global__ void PermutationGenerator(int V, int*result, int numVersion, int shuf
     for(int k = 0; k < shuffle_degree; k++)
     {
       num1 = j*V + curand(&state) % V;
+	__syncthreads();
       num2 = j*V + curand(&state) % V;
+	__syncthreads();
       holder = result[num1];
+	__syncthreads();
       result[num1] = result[num2];
+	__syncthreads();
       result[num2] = holder;
+	__syncthreads();
     }
+
+	//printf("for %i, num1 = %i, num2 = %i\n", j, num1%V, num2%V);
   }
 }
 
@@ -323,7 +330,7 @@ int main(int argc, char* argv[])
    CopyGraph<<<256,1024>>>(h_graph,pre_graph,dimension[V-1]+address[V-1]);
    cudaDeviceSynchronize();
 
-   PermutationGenerator<<<256,1024>>>(V,sequence,numVersion,V);
+   PermutationGenerator<<<1,500>>>(V,sequence,numVersion,V);
    cudaDeviceSynchronize();
 
    RandomizedParallelGreedy<<<256,1024>>>
@@ -352,13 +359,13 @@ int main(int argc, char* argv[])
    //  if(i%V == V-1){cout<<endl;}
    // }
    //
-   // int counter0 = 0;
-   // printf("sequence:\n");
-   // for (int i = 0; i < V*numVersion; i++)
-   // {
-   //  cout << sequence[i] << " ";
-   //  if(i%V == V-1){cout<<"sequence no: "<<counter0++<<endl;}
-   // }
+    int counter0 = 0;
+    printf("sequence:\n");
+    for (int i = 0; i < V*numVersion; i++)
+    {
+     cout << sequence[i] << " ";
+     if(i%V == V-1){cout<<"sequence no: "<<counter0++<<endl;}
+    }
    CountColors(V,V*numVersion,result);
    int counter1 = 0;
    for(int i = 0; i < V*numVersion; i++)
