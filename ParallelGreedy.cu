@@ -103,13 +103,15 @@ __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, in
       // printf("clash with vertex %i\n", h_graph[a+i]);
       i = -1;
       color ++;
+      //atomicAdd(&color, 1);
       continue;
     }
   }
   // printf("curVertex %i\n", curVertex);
   // printf("Vertex %i receieves color %i\n", curVertex,color);
-  result[startingAddress +curVertex] = color;
-
+__syncthreads();  
+result[startingAddress +curVertex] = color;
+__syncthreads();
 }
 __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
                  int* address, int* sequence,int V, int numVersion, int* result)
@@ -281,7 +283,7 @@ int main(int argc, char* argv[])
    int V;
    int numVersion;
 
-   numVersion = 500;
+   numVersion = 1;
 
 
    if (string(argv[1]).find(".col") != string::npos)
@@ -296,27 +298,56 @@ int main(int argc, char* argv[])
    else
       return -1;
 
+/*
+  int* testSequence;
+  cudaMallocManaged(&testSequence,sizeof(int)*80);
+  testSequence[0] = 0;
+  testSequence[1] = 9;
+  testSequence[2] = 33;
+  testSequence[3] = 16;
+  testSequence[4] = 35;
+  testSequence[5] = 5;
+  testSequence[6] = 15;
+  testSequence[7] = 28;
+  testSequence[8] = 8;
+  testSequence[9] = 37;
+  testSequence[10] = 36;
+  testSequence[11] = 29;
+  testSequence[12] = 20;
+  testSequence[13] = 17;
+  testSequence[14] = 3;
+  testSequence[15] = 1;
 
-   // int* testSequence;
-   // cudaMallocManaged(&testSequence,sizeof(int)*4);
-   // testSequence[0] = 3;
-   // testSequence[1] = 1;
-   // testSequence[2] = 6;
-   // testSequence[3] = 8;
-   // testSequence[4] = 5;
-   // testSequence[5] = 13;
-   // testSequence[6] = 0;
-   // testSequence[7] = 9;
-   // testSequence[8] = 14;
-   // testSequence[9] = 7;
-   // testSequence[10] = 12;
-   // testSequence[11] = 11;
-   // testSequence[12] = 2;
-   // testSequence[13] = 10;
-   // testSequence[14] = 15;
-   // testSequence[15] = 4;
+  testSequence[16] = 13;
+  testSequence[17] = 25;
+  testSequence[18] = 18;
+  testSequence[19] = 26;
+  testSequence[20] = 32;
+  testSequence[21] = 21;
+  testSequence[22] = 19;
+  testSequence[23] = 23;
+  testSequence[24] = 30;
+  testSequence[25] = 11;
+  testSequence[26] = 31;
+  testSequence[27] = 27;
+  testSequence[28] = 24;
+  testSequence[29] = 14;
+  testSequence[30] = 6;
+  testSequence[31] = 4;
+  testSequence[32] = 38;
+  testSequence[33] = 39;
+  testSequence[34] = 34;
+  testSequence[35] = 10;
+  testSequence[36] = 2;
+  testSequence[37] = 22;
+  testSequence[38] = 7;
+  testSequence[39] = 12;
 
-
+for (int i = 40; i < 80; i++)
+{
+	testSequence[i] = testSequence[i-40];
+}
+*/
    cudaMallocManaged(&sequence, sizeof(int) * V * numVersion);
    cudaMallocManaged(&dimension,sizeof(int)*V);
    cudaMallocManaged(&address,sizeof(int)*V);
@@ -333,7 +364,7 @@ int main(int argc, char* argv[])
    PermutationGenerator<<<1,500>>>(V,sequence,numVersion,V);
    cudaDeviceSynchronize();
 
-   RandomizedParallelGreedy<<<256,1024>>>
+   RandomizedParallelGreedy<<<1,1024>>>
    (h_graph, dimension, address, sequence, V, numVersion, result);
    cudaDeviceSynchronize();
 
