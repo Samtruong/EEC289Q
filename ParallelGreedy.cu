@@ -81,7 +81,7 @@ __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, in
 {
   //int result[curVertex] = 1;
   int color = 1;
-  // printf("in color on vertex %i\n", startingAddress);
+  // printf("in color on vertex %i\n", curVertex);
   // //printf("h_graph\n");
   // for (int i = 0; i < d; i++)
   //   printf("%i ", h_graph[a+i]);
@@ -90,16 +90,17 @@ __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, in
   // printf("address %i\n", a);
   for (int i = 0; i < d; i++)
   {
-    // printf ("hgraph referecned: %i at %i\n", result[h_graph[a + i]], h_graph[a + i] );
+    // printf("Comparing with vertex: %i\n", h_graph[a+i]);
     if (color == result[startingAddress + h_graph[a + i]])
     {
-      // printf("color incremented\n");
-      i = 0;
+      // printf("clash with vertex %i\n", h_graph[a+i]);
+      i = -1;
       color ++;
       continue;
     }
   }
   // printf("curVertex %i\n", curVertex);
+  // printf("Vertex %i receieves color %i\n", curVertex,color);
   result[startingAddress +curVertex] = color;
 
 }
@@ -174,7 +175,25 @@ void CountColors(int V,int length, int* color)
       }
    }
 }
+bool IsValidColoring(int* graph, int V, int* color)
+{
+   for (int i = 0; i < V; i++) {
+      for (int j = 0; j < V; j++) {
+         if (graph[i * V + j]) {
+            if (i != j && color[i] == color[j]) {
+               printf("Vertex %d and Vertex %d are connected and have the same color %d\n", i, j, color[i]);
+               return false;
+            }
+            if (color[i] < 1) {
+               printf("Vertex %d has invalid color %d\n", i, color[i]);
+               return false;
+            }
+         }
+      }
+   }
 
+   return true;
+}
 //Load raw .co data
 void getDimension(const char filename[], int* V)
 {
@@ -269,23 +288,21 @@ int main(int argc, char* argv[])
       //ReadMMFile(argv[1], &graph, &V);
    else
       return -1;
+
+
+   // int* testSequence;
+   // cudaMallocManaged(&testSequence,sizeof(int)*4);
+   // testSequence[0] = 2;
+   // testSequence[1] = 0;
+   // testSequence[2] = 1;
+   // testSequence[3] = 3;
    cudaMallocManaged(&sequence, sizeof(int) * V * numVersion);
    cudaMallocManaged(&dimension,sizeof(int)*V);
    cudaMallocManaged(&address,sizeof(int)*V);
    cudaMallocManaged(&result, sizeof(int) *V*numVersion);
    cudaMallocManaged(&pre_graph,sizeof(int)*V*V);
 
-   //Added for testing
-   //h_graph 2, 3, 1, 3, 4,1,2,4,2,3
-   //dimension 2,3,3,2
-   //address 0,2,5,8
-   // cudaMallocManaged(&h_graph,sizeof(int)*V*V);
-   // h_graph[0]=1; h_graph[1]= 2; h_graph[2]=0; h_graph[3]=2; h_graph[4]=3;
-   // h_graph[5]=0; h_graph[6]=1; h_graph[7]=3; h_graph[8]=1; h_graph[9]=2;
-   //
-   // dimension[0]=2; dimension[1]=3; dimension[2] = 3; dimension[3]=2;
-   // address[0]=0; address[1]=2; address[2]=5; address[3]=8;
-
+   int finalSolution[V];
    GraphGenerator<<<256,1024>>>(matrix,dimension,address,V,pre_graph);
    cudaDeviceSynchronize();
    cudaMallocManaged(&h_graph,sizeof(int)* (dimension[V-1]+address[V-1]));
@@ -299,28 +316,44 @@ int main(int argc, char* argv[])
    (h_graph, dimension, address, sequence, V, numVersion, result);
    cudaDeviceSynchronize();
 
-
-   printf("dimensions\n");
-   for (int i = 0; i < V; i++)
+   //
+   // printf("dimensions\n");
+   // for (int i = 0; i < V; i++)
+   // {
+   //   cout << dimension[i] << " ";
+   // }
+   // cout << endl;
+   // printf("address\n");
+   // for (int i = 0; i < V; i++)
+   // {
+   //   cout << address[i] << " ";
+   // } cout << endl;
+   // for (int i =0; i < (dimension[V-1]+address[V-1]); i++){printf("%i ", h_graph[i]);}
+   //
+   // cout<<endl;
+   // printf("coloring:\n");
+   // for (int i = 0; i < V*numVersion; i++)
+   // {
+   //  cout << result[i] << " ";
+   //  if(i%V == V-1){cout<<endl;}
+   // }
+   //
+   // printf("sequence:\n");
+   // for (int i = 0; i < V*numVersion; i++)
+   // {
+   //  cout << sequence[i] << " ";
+   //  if(i%V == V-1){cout<<endl;}
+   // }
+   //CountColors(V,V*numVersion,result);
+   for(int i = 0; i < V*numVersion; i++)
    {
-     cout << dimension[i] << " ";
+     if(i%V == V-1)
+     {
+       finalSolution[i%V] = result[i];
+       if(IsValidColoring(matrix,V,finalSolution)){cout<<"Valid Solution"<<endl;}
+     }
+     finalSolution[i%V] = result[i];
    }
-   cout << endl;
-   printf("address\n");
-   for (int i = 0; i < V; i++)
-   {
-     cout << address[i] << " ";
-   } cout << endl;
-   for (int i =0; i < (dimension[V-1]+address[V-1]); i++){printf("%i ", h_graph[i]);}
-
-   cout<<endl;
-   printf("coloring:\n");
-   for (int i = 0; i < V*numVersion; i++)
-   {
-    cout << result[i] << " ";
-    if(i%V == V-1){cout<<endl;}
-   }
-   CountColors(V,V*numVersion,result);
    cudaFree(h_graph);
    cudaFree(dimension);
    cudaFree(sequence);
