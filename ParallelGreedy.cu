@@ -58,21 +58,21 @@ __global__ void PermutationGenerator(int V, int*result, int numVersion, int shuf
   }
 }
 
-__device__ void Color(int* h_graph, int colorAddress,int curVertex, int a, int d, int* result)
+__device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, int d, int* result)
 {
   //int result[curVertex] = 1;
   int color = 1;
-  // printf("in color on vertex %i\n", curVertex);
-  // printf("h_graph\n");
-  // for (int i = 0; i < d; i++)
-  //   printf("%i ", h_graph[a+i]);
-  //   printf("\n");
-  // printf("dimension %i\n", d);
-  // printf("address %i\n", a);
+  printf("in color on vertex %i\n", startingAddress);
+  //printf("h_graph\n");
+  for (int i = 0; i < d; i++)
+    printf("%i ", h_graph[a+i]);
+  printf("\n");
+  printf("dimension %i\n", d);
+  printf("address %i\n", a);
   for (int i = 0; i < d; i++)
   {
     // printf ("hgraph referecned: %i at %i\n", result[h_graph[a + i]], h_graph[a + i] );
-    if (color == result[colorAddress + h_graph[a + i] - curVertex])
+    if (color == result[startingAddress + h_graph[a + i]])
     {
       // printf("color incremented\n");
       i = 0;
@@ -81,7 +81,7 @@ __device__ void Color(int* h_graph, int colorAddress,int curVertex, int a, int d
     }
   }
   // printf("curVertex %i\n", curVertex);
-  result[colorAddress] = color;
+  result[startingAddress +curVertex] = color;
 
 }
 __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
@@ -129,7 +129,7 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
       int curVertex = sequence[j*V+k];
       a = address[curVertex]; //address of first neighboor
       d = dimension[curVertex];//number of neighboor
-      Color(h_graph, j*V+k,curVertex, a, d, result);
+      Color(h_graph,j*V,curVertex, a, d, result);
       __syncthreads();
     }
     // printf("nextVersion\n");
@@ -239,8 +239,8 @@ int main(int argc, char* argv[])
    //dimension 2,3,3,2
    //address 0,2,5,8
         cudaMallocManaged(&h_graph,sizeof(int)*V*V);
-   h_graph[0]=2; h_graph[1]= 3; h_graph[2]=1; h_graph[3]=3; h_graph[4]=4;
-   h_graph[5]=1; h_graph[6]=2; h_graph[7]=4; h_graph[8]=2; h_graph[9]=3;
+   h_graph[0]=1; h_graph[1]= 2; h_graph[2]=0; h_graph[3]=2; h_graph[4]=3;
+   h_graph[5]=0; h_graph[6]=1; h_graph[7]=3; h_graph[8]=1; h_graph[9]=2;
 
    dimension[0]=2; dimension[1]=3; dimension[2] = 3; dimension[3]=2;
    address[0]=0; address[1]=2; address[2]=5; address[3]=8;
