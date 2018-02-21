@@ -274,7 +274,7 @@ int main(int argc, char* argv[])
    int V;
    int numVersion;
 
-   numVersion = 100;
+   numVersion = 500;
 
 
    if (string(argv[1]).find(".col") != string::npos)
@@ -292,10 +292,24 @@ int main(int argc, char* argv[])
 
    // int* testSequence;
    // cudaMallocManaged(&testSequence,sizeof(int)*4);
-   // testSequence[0] = 2;
-   // testSequence[1] = 0;
-   // testSequence[2] = 1;
-   // testSequence[3] = 3;
+   // testSequence[0] = 3;
+   // testSequence[1] = 1;
+   // testSequence[2] = 6;
+   // testSequence[3] = 8;
+   // testSequence[4] = 5;
+   // testSequence[5] = 13;
+   // testSequence[6] = 0;
+   // testSequence[7] = 9;
+   // testSequence[8] = 14;
+   // testSequence[9] = 7;
+   // testSequence[10] = 12;
+   // testSequence[11] = 11;
+   // testSequence[12] = 2;
+   // testSequence[13] = 10;
+   // testSequence[14] = 15;
+   // testSequence[15] = 4;
+
+
    cudaMallocManaged(&sequence, sizeof(int) * V * numVersion);
    cudaMallocManaged(&dimension,sizeof(int)*V);
    cudaMallocManaged(&address,sizeof(int)*V);
@@ -338,17 +352,20 @@ int main(int argc, char* argv[])
    //  if(i%V == V-1){cout<<endl;}
    // }
    //
+   // int counter0 = 0;
    // printf("sequence:\n");
    // for (int i = 0; i < V*numVersion; i++)
    // {
    //  cout << sequence[i] << " ";
-   //  if(i%V == V-1){cout<<endl;}
+   //  if(i%V == V-1){cout<<"sequence no: "<<counter0++<<endl;}
    // }
-   //CountColors(V,V*numVersion,result);
+   CountColors(V,V*numVersion,result);
+   int counter1 = 0;
    for(int i = 0; i < V*numVersion; i++)
    {
      if(i%V == V-1)
      {
+       cout<<counter1++<<endl;
        finalSolution[i%V] = result[i];
        if(IsValidColoring(matrix,V,finalSolution)){cout<<"Valid Solution"<<endl;}
      }
