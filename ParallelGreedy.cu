@@ -58,60 +58,60 @@ __global__ void PermutationGenerator(int V, int*result, int numVersion, int shuf
   }
 }
 
-__device__ void Color(int* h_graph, int curVertex, int a, int d, int* result)
+__device__ void Color(int* h_graph, int colorAddress,int curVertex, int a, int d, int* result)
 {
   //int result[curVertex] = 1;
   int color = 1;
-  printf("in color on vertex %i\n", curVertex);
-  printf("h_graph\n");
-  for (int i = 0; i < d; i++)
-    printf("%i ", h_graph[a+i]);
-    printf("\n");
-  printf("dimension %i\n", d);
-  printf("address %i\n", a);
+  // printf("in color on vertex %i\n", curVertex);
+  // printf("h_graph\n");
+  // for (int i = 0; i < d; i++)
+  //   printf("%i ", h_graph[a+i]);
+  //   printf("\n");
+  // printf("dimension %i\n", d);
+  // printf("address %i\n", a);
   for (int i = 0; i < d; i++)
   {
-    printf ("hgraph referecned: %i at %i\n", result[h_graph[a + i]], h_graph[a + i] );
-    if (color == result[h_graph[a + i]-1])
+    // printf ("hgraph referecned: %i at %i\n", result[h_graph[a + i]], h_graph[a + i] );
+    if (color == result[colorAddress + h_graph[a + i] - curVertex])
     {
-      printf("color incremented\n");
+      // printf("color incremented\n");
       i = 0;
       color ++;
       continue;
     }
   }
-  printf("curVertex %i\n", curVertex);
-  result[curVertex] = color;
+  // printf("curVertex %i\n", curVertex);
+  result[colorAddress] = color;
 
 }
 __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
                  int* address, int* sequence,int V, int numVersion, int* result)
 {
-  printf("Sequence:\n");
-  for (int i = 0; i < V *numVersion; i++)
-  {
-    printf("%i", sequence[i]);
-  }
-  printf("1\n");
+  // printf("Sequence:\n");
+  // for (int i = 0; i < V *numVersion; i++)
+  // {
+  //   printf("%i", sequence[i]);
+  // }
+  // printf("1\n");
   int index = threadIdx.x + blockDim.x * blockIdx.x;
   int stride = blockDim.x * gridDim.x;
   int a,d;
 
   extern __shared__ int d_graph[];
-   extern __shared__ int d_dimension[];
-   extern __shared__ int d_address[];
+  extern __shared__ int d_dimension[];
+  extern __shared__ int d_address[];
   /*
   extern __shared__ int d_dimension[];
   extern __shared__ int d_address[];
   */
-printf("2\n");
+// printf("2\n");
   int length = dimension[V - 1] + address[V - 1]; //length of h_graph;
 
   //copy to shared memory:
 
   for(int i = index; i < length; i+= stride){d_graph[i] = h_graph[i];}
   __syncthreads();
-printf("3\n");
+// printf("3\n");
 
   /*for(int i = index; i < V; i+= stride)
   {
@@ -120,19 +120,19 @@ printf("3\n");
   }*/
   __syncthreads();
   //end copy to shared memory
-  printf("4\n");
+  // printf("4\n");
 
   for(int j = index; j < numVersion; j +=stride)
   {
-    int startingPoint = j*V+1;
     for(int k = 0; k < V; k++)
     {
-      a = address[(startingPoint+k-1)%V]; //FIX ME
-      d = dimension[(startingPoint+k-1)%V];
-      Color(h_graph, startingPoint+k-1, a, d, result);
+      int curVertex = sequence[j*V+k];
+      a = address[curVertex]; //address of first neighboor
+      d = dimension[curVertex];//number of neighboor
+      Color(h_graph, j*V+k,curVertex, a, d, result);
       __syncthreads();
     }
-    printf("nextVersion\n");
+    // printf("nextVersion\n");
   }
 }
 //================================Utility Functions=======================================
@@ -216,8 +216,6 @@ int main(int argc, char* argv[])
 
    numVersion = 10;
    V = 4;
-   //numVersion = 100;
-   //int* color;
 
 /*
    if (string(argv[1]).find(".col") != string::npos)
@@ -247,22 +245,29 @@ int main(int argc, char* argv[])
    dimension[0]=2; dimension[1]=3; dimension[2] = 3; dimension[3]=2;
    address[0]=0; address[1]=2; address[2]=5; address[3]=8;
 
-//   ParallelThrust<<<V,V>>>(h_graph,dimension,V);
+// ParallelThrust<<<V,V>>>(h_graph,dimension,V);
    cudaDeviceSynchronize();
 
    thrust::exclusive_scan(&dimension[0],&dimension[V], address);
-  PermutationGenerator<<<256,1024>>>(V,sequence,numVersion,V);
+   PermutationGenerator<<<256,1024>>>(V,sequence,numVersion,V);
    cudaDeviceSynchronize();
+   // printf("sequence:\n");
+   // for (int i = 0; i < V*numVersion; i++)
+   // {
+   //  cout << sequence[i] << " ";
+   //  if(i%4 == 3){cout<<endl;}
+   // }
+
    RandomizedParallelGreedy<<<1,1, sizeof(h_graph)+sizeof(dimension)+sizeof(address)>>>
    (h_graph, dimension, address, sequence, V, numVersion, result);
    cudaDeviceSynchronize();
+
    printf("coloring:\n");
    for (int i = 0; i < V*numVersion; i++)
-    cout << result[i] << " " << endl;
-   // cout<<"Scan Graph"<<endl;
-   // PrintMatrix(h_graph,V,V);
-   // cout<<"dimension"<<endl;
-   // PrintMatrix(dimension,1,V);
+   {
+    cout << result[i] << " ";
+    if(i%4 == 3){cout<<endl;}
+   }
 
    cudaFree(h_graph);
    cudaFree(dimension);
