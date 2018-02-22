@@ -69,15 +69,15 @@ __global__ void PermutationGenerator(int V, int*result, int numVersion, int shuf
     for(int k = 0; k < shuffle_degree; k++)
     {
       num1 = j*V + curand(&state) % V;
-	__syncthreads();
+
       num2 = j*V + curand(&state) % V;
-	__syncthreads();
+
       holder = result[num1];
-	__syncthreads();
+
       result[num1] = result[num2];
-	__syncthreads();
+
       result[num2] = holder;
-	__syncthreads();
+
     }
 
 	//printf("for %i, num1 = %i, num2 = %i\n", j, num1%V, num2%V);
@@ -86,6 +86,7 @@ __global__ void PermutationGenerator(int V, int*result, int numVersion, int shuf
 
 __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, int d, int* result)
 {
+
   //int result[curVertex] = 1;
   int color = 1;
   // printf("in color on vertex %i\n", curVertex);
@@ -97,10 +98,10 @@ __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, in
   // printf("address %i\n", a);
   for (int i = 0; i < d; i++)
   {
-    // printf("Comparing with vertex: %i\n", h_graph[a+i]);
+    // if(threadIdx.x == 1){printf("Comparing %i with vertex: %i\n", curVertex, h_graph[a+i]);}
     if (color == result[startingAddress + h_graph[a + i]])
     {
-      // printf("clash with vertex %i\n", h_graph[a+i]);
+      //printf("clash with vertex %i\n", h_graph[a+i]);
       i = -1;
       color ++;
       //atomicAdd(&color, 1);
@@ -109,7 +110,7 @@ __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, in
   }
   // printf("curVertex %i\n", curVertex);
   // printf("Vertex %i receieves color %i\n", curVertex,color);
-__syncthreads();  
+__syncthreads();
 result[startingAddress +curVertex] = color;
 __syncthreads();
 }
@@ -134,7 +135,7 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
   extern __shared__ int d_address[];
   */
 // printf("2\n");
-  int length = dimension[V - 1] + address[V - 1]; //length of h_graph;
+  // int length = dimension[V - 1] + address[V - 1]; //length of h_graph;
 
   //copy to shared memory:
 
@@ -283,7 +284,7 @@ int main(int argc, char* argv[])
    int V;
    int numVersion;
 
-   numVersion = 1;
+   numVersion = 1000;
 
 
    if (string(argv[1]).find(".col") != string::npos)
@@ -298,56 +299,56 @@ int main(int argc, char* argv[])
    else
       return -1;
 
-/*
+
   int* testSequence;
   cudaMallocManaged(&testSequence,sizeof(int)*80);
-  testSequence[0] = 0;
-  testSequence[1] = 9;
+  testSequence[0] = 7;
+  testSequence[1] = 15;
   testSequence[2] = 33;
-  testSequence[3] = 16;
-  testSequence[4] = 35;
-  testSequence[5] = 5;
-  testSequence[6] = 15;
-  testSequence[7] = 28;
-  testSequence[8] = 8;
-  testSequence[9] = 37;
-  testSequence[10] = 36;
-  testSequence[11] = 29;
-  testSequence[12] = 20;
-  testSequence[13] = 17;
-  testSequence[14] = 3;
-  testSequence[15] = 1;
+  testSequence[3] = 20;
+  testSequence[4] = 39;
+  testSequence[5] = 23;
+  testSequence[6] = 22;
+  testSequence[7] = 0;
+  testSequence[8] = 3;
+  testSequence[9] = 28;
+  testSequence[10] = 10;
+  testSequence[11] = 16;
+  testSequence[12] = 9;
+  testSequence[13] = 6;
+  testSequence[14] = 27;
+  testSequence[15] = 24;
 
-  testSequence[16] = 13;
-  testSequence[17] = 25;
-  testSequence[18] = 18;
-  testSequence[19] = 26;
-  testSequence[20] = 32;
-  testSequence[21] = 21;
-  testSequence[22] = 19;
-  testSequence[23] = 23;
-  testSequence[24] = 30;
-  testSequence[25] = 11;
+  testSequence[16] = 1;
+  testSequence[17] = 26;
+  testSequence[18] = 19;
+  testSequence[19] = 2;
+  testSequence[20] = 17;
+  testSequence[21] = 35;
+  testSequence[22] = 18;
+  testSequence[23] = 4;
+  testSequence[24] = 11;
+  testSequence[25] = 36;
   testSequence[26] = 31;
-  testSequence[27] = 27;
-  testSequence[28] = 24;
-  testSequence[29] = 14;
-  testSequence[30] = 6;
-  testSequence[31] = 4;
-  testSequence[32] = 38;
-  testSequence[33] = 39;
-  testSequence[34] = 34;
-  testSequence[35] = 10;
-  testSequence[36] = 2;
-  testSequence[37] = 22;
-  testSequence[38] = 7;
-  testSequence[39] = 12;
+  testSequence[27] = 14;
+  testSequence[28] = 32;
+  testSequence[29] = 29;
+  testSequence[30] = 30;
+  testSequence[31] = 13;
+  testSequence[32] = 25;
+  testSequence[33] = 21;
+  testSequence[34] = 37;
+  testSequence[35] = 12;
+  testSequence[36] = 5;
+  testSequence[37] = 8;
+  testSequence[38] = 38;
+  testSequence[39] = 34;
 
 for (int i = 40; i < 80; i++)
 {
 	testSequence[i] = testSequence[i-40];
 }
-*/
+
    cudaMallocManaged(&sequence, sizeof(int) * V * numVersion);
    cudaMallocManaged(&dimension,sizeof(int)*V);
    cudaMallocManaged(&address,sizeof(int)*V);
@@ -390,13 +391,13 @@ for (int i = 40; i < 80; i++)
    //  if(i%V == V-1){cout<<endl;}
    // }
    //
-    int counter0 = 0;
-    printf("sequence:\n");
-    for (int i = 0; i < V*numVersion; i++)
-    {
-     cout << sequence[i] << " ";
-     if(i%V == V-1){cout<<"sequence no: "<<counter0++<<endl;}
-    }
+    // int counter0 = 0;
+    // printf("sequence:\n");
+    // for (int i = 0; i < V*numVersion; i++)
+    // {
+    //  cout << sequence[i] << " ";
+    //  if(i%V == V-1){cout<<"sequence no: "<<counter0++<<endl;}
+    // }
    CountColors(V,V*numVersion,result);
    int counter1 = 0;
    for(int i = 0; i < V*numVersion; i++)
@@ -406,9 +407,12 @@ for (int i = 40; i < 80; i++)
        cout<<counter1++<<endl;
        finalSolution[i%V] = result[i];
        if(IsValidColoring(matrix,V,finalSolution)){cout<<"Valid Solution"<<endl;}
+       // for (int j = 0; j < V; j++)
+       //    printf("%i at index%i\n", finalSolution[j], j);
      }
      finalSolution[i%V] = result[i];
    }
+
    cudaFree(h_graph);
    cudaFree(dimension);
    cudaFree(sequence);
