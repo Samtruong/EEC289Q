@@ -14,29 +14,10 @@
 using namespace std;
 
 
-__global__ void CopyGraph(int* h_graph, int* pre_graph, int length)
+__global__ void GraphGenerator(int* matrix,int* dimension, int* address, int* h_graph, int V)
 {
   int index = threadIdx.x + blockDim.x * blockIdx.x;
   int stride = blockDim.x * gridDim.x;
-  for(int i = index; i < length; i += stride){h_graph[i] = pre_graph[i];}
-}
-
-__global__ void GraphGenerator(int* matrix, int* dimension, int* address, int V, int *h_graph)
-{
-  int index = threadIdx.x + blockDim.x * blockIdx.x;
-  int stride = blockDim.x * gridDim.x;
-  for(int i = index; i < V; i += stride)
-  {
-    for (int j = 0; j < V; j++)
-    {
-      if(matrix[i*V + j])
-      {
-        dimension[i]++;
-      }
-    }
-  }
-  __syncthreads();
-  thrust::exclusive_scan(thrust::device,&dimension[0],&dimension[V], &address[0]);
   for(int i = index; i < V; i += stride)
   {
     int a = address[i];
@@ -51,6 +32,24 @@ __global__ void GraphGenerator(int* matrix, int* dimension, int* address, int V,
     }
   }
 }
+
+__global__ void DimensionGenerator(int* matrix, int* dimension, int* address, int V)
+{
+  int index = threadIdx.x + blockDim.x * blockIdx.x;
+  int stride = blockDim.x * gridDim.x;
+  for(int i = index; i < V; i += stride)
+  {
+    for (int j = 0; j < V; j++)
+    {
+      if(matrix[i*V + j])
+      {
+        dimension[i]++;
+      }
+    }
+  }
+  __syncthreads();
+}
+
 
 __global__ void PermutationGenerator(int V, int*result, int numVersion, int shuffle_degree)
 {
@@ -98,10 +97,12 @@ __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, in
   // printf("address %i\n", a);
   for (int i = 0; i < d; i++)
   {
-    // if(threadIdx.x == 1){printf("Comparing %i with vertex: %i\n", curVertex, h_graph[a+i]);}
-    if (color == result[startingAddress + h_graph[a + i]])
+    int other_vertex = h_graph[a + i];
+    int other_color = result[startingAddress + other_vertex];
+    // printf("Comparing %i with vertex: %i\n", curVertex, other_vertex);
+    if (color == other_color)
     {
-      //printf("clash with vertex %i\n", h_graph[a+i]);
+      // printf("clash with vertex %i\n", h_graph[a+i]);
       i = -1;
       color ++;
       //atomicAdd(&color, 1);
@@ -110,9 +111,7 @@ __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, in
   }
   // printf("curVertex %i\n", curVertex);
   // printf("Vertex %i receieves color %i\n", curVertex,color);
-__syncthreads();
 result[startingAddress +curVertex] = color;
-__syncthreads();
 }
 __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
                  int* address, int* sequence,int V, int numVersion, int* result)
@@ -140,7 +139,6 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
   //copy to shared memory:
 
   //for(int i = index; i < length; i+= stride){d_graph[i] = h_graph[i];}
-  __syncthreads();
 // printf("3\n");
 
   /*for(int i = index; i < V; i+= stride)
@@ -148,19 +146,34 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
     d_dimension[i] = dimension[i];
     d_address[i] = address[i];
   }*/
-  __syncthreads();
   //end copy to shared memory
   // printf("4\n");
+
 
   for(int j = index; j < numVersion; j +=stride)
   {
     for(int k = 0; k < V; k++)
     {
       int curVertex = sequence[j*V+k];
-      a = address[curVertex]; //address of first neighboor
-      d = dimension[curVertex];//number of neighboor
+      // printf("Current Vertex: %d\n", curVertex);
+      a = address[curVertex]; //address of first neighbor
+      d = dimension[curVertex];//number of neighbor
       Color(h_graph,j*V,curVertex, a, d, result);
-      __syncthreads();
+
+      // int offset, degree, other;
+
+     //  printf("Vertex %d\n", k);
+     //  for (int i=0; i < V; i++)
+     //  {
+     //     offset = address[i];
+     //     degree = dimension[i];
+     //     for (int l=0; l < degree; l++)
+     //     {
+   	 // other = h_graph[offset+l];
+   	 // if (result[i] == result[other] && result[i] != 0)
+   	 //     printf("Vertex %d and %d have the same color %d\n", i, other, result[i]);
+     //     }
+     //  }
     }
     // printf("nextVersion\n");
   }
@@ -196,7 +209,7 @@ bool IsValidColoring(int* graph, int V, int* color)
             }
             if (color[i] < 1) {
                printf("Vertex %d has invalid color %d\n", i, color[i]);
-               return false;
+
             }
          }
       }
@@ -275,7 +288,6 @@ void PrintMatrix(int* matrix, int M, int N) {
 int main(int argc, char* argv[])
 {
    int * matrix;
-   int * pre_graph;
    int * h_graph;
    int * sequence;
    int * dimension;
@@ -284,7 +296,7 @@ int main(int argc, char* argv[])
    int V;
    int numVersion;
 
-   numVersion = 1000;
+   numVersion = 10;
 
 
    if (string(argv[1]).find(".col") != string::npos)
@@ -299,75 +311,36 @@ int main(int argc, char* argv[])
    else
       return -1;
 
-
-  int* testSequence;
-  cudaMallocManaged(&testSequence,sizeof(int)*80);
-  testSequence[0] = 7;
-  testSequence[1] = 15;
-  testSequence[2] = 33;
-  testSequence[3] = 20;
-  testSequence[4] = 39;
-  testSequence[5] = 23;
-  testSequence[6] = 22;
-  testSequence[7] = 0;
-  testSequence[8] = 3;
-  testSequence[9] = 28;
-  testSequence[10] = 10;
-  testSequence[11] = 16;
-  testSequence[12] = 9;
-  testSequence[13] = 6;
-  testSequence[14] = 27;
-  testSequence[15] = 24;
-
-  testSequence[16] = 1;
-  testSequence[17] = 26;
-  testSequence[18] = 19;
-  testSequence[19] = 2;
-  testSequence[20] = 17;
-  testSequence[21] = 35;
-  testSequence[22] = 18;
-  testSequence[23] = 4;
-  testSequence[24] = 11;
-  testSequence[25] = 36;
-  testSequence[26] = 31;
-  testSequence[27] = 14;
-  testSequence[28] = 32;
-  testSequence[29] = 29;
-  testSequence[30] = 30;
-  testSequence[31] = 13;
-  testSequence[32] = 25;
-  testSequence[33] = 21;
-  testSequence[34] = 37;
-  testSequence[35] = 12;
-  testSequence[36] = 5;
-  testSequence[37] = 8;
-  testSequence[38] = 38;
-  testSequence[39] = 34;
-
-for (int i = 40; i < 80; i++)
-{
-	testSequence[i] = testSequence[i-40];
-}
-
    cudaMallocManaged(&sequence, sizeof(int) * V * numVersion);
    cudaMallocManaged(&dimension,sizeof(int)*V);
    cudaMallocManaged(&address,sizeof(int)*V);
    cudaMallocManaged(&result, sizeof(int) *V*numVersion);
-   cudaMallocManaged(&pre_graph,sizeof(int)*V*V);
+
 
    int finalSolution[V];
-   GraphGenerator<<<256,1024>>>(matrix,dimension,address,V,pre_graph);
+
+   DimensionGenerator<<<256,1024>>>(matrix,dimension,address,V);
    cudaDeviceSynchronize();
+   thrust::exclusive_scan(thrust::host,dimension,&dimension[V],address);
    cudaMallocManaged(&h_graph,sizeof(int)* (dimension[V-1]+address[V-1]));
-   CopyGraph<<<256,1024>>>(h_graph,pre_graph,dimension[V-1]+address[V-1]);
+
+   GraphGenerator<<<256,1024>>>(matrix,dimension,address,h_graph,V);
    cudaDeviceSynchronize();
+
+   // for(int i = 0; i < dimension[V-1] + address[V-1] ; i++){cout<<h_graph[i];}
+   // cout<<endl;
 
    PermutationGenerator<<<1,500>>>(V,sequence,numVersion,V);
    cudaDeviceSynchronize();
 
-   RandomizedParallelGreedy<<<1,1024>>>
+   RandomizedParallelGreedy<<<512,1024>>>
    (h_graph, dimension, address, sequence, V, numVersion, result);
+
+
    cudaDeviceSynchronize();
+
+
+   // cudaDeviceSynchronize();
 
    //
    // printf("dimensions\n");
@@ -399,14 +372,14 @@ for (int i = 40; i < 80; i++)
     //  if(i%V == V-1){cout<<"sequence no: "<<counter0++<<endl;}
     // }
    CountColors(V,V*numVersion,result);
-   int counter1 = 0;
+   // int counter1 = 0;
    for(int i = 0; i < V*numVersion; i++)
    {
      if(i%V == V-1)
      {
-       cout<<counter1++<<endl;
+       //cout<<counter1++<<endl;
        finalSolution[i%V] = result[i];
-       if(IsValidColoring(matrix,V,finalSolution)){cout<<"Valid Solution"<<endl;}
+       if(!IsValidColoring(matrix,V,finalSolution)){cout<<"InValid Solution"<<endl;}
        // for (int j = 0; j < V; j++)
        //    printf("%i at index%i\n", finalSolution[j], j);
      }
@@ -419,6 +392,5 @@ for (int i = 40; i < 80; i++)
    cudaFree(address);
    cudaFree(result);
    cudaFree(matrix);
-   cudaFree(pre_graph);
    return 0;
 }
