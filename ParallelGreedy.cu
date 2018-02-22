@@ -120,22 +120,33 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
   }
 }
 //================================Utility Functions=======================================
-void CountColors(int V,int length, int* color)
+void CountColors(int V,int length, int* color, int &minColors, int &minIndex)
 {
-   int num_colors = 0;
+	//int minColors = INT_MAX;
+	//int minIndex;
+   int num_colors [length];
+	for (int i = 0; i < length; i++)
+	{
+		num_colors[i] = 0;
+	}
    set<int> seen_colors;
 
    for (int i = 0; i < length; i++) {
       if (seen_colors.find(color[i]) == seen_colors.end())
       {
          seen_colors.insert(color[i]);
-         num_colors++;
+         num_colors[i/V]++;
       }
       if(i%V==V-1)
       {
-        cout<<num_colors<<endl;
+        cout<<num_colors[i/V]<<endl;
+	if (num_colors[i/V] < minColors)
+	{
+		minColors = num_colors[i/V];
+		minIndex = i / V;
+	}
         seen_colors.clear();
-        num_colors = 0;
+        //num_colors = 0;
       }
    }
 }
@@ -278,7 +289,7 @@ int main(int argc, char* argv[])
    int V;
    int numVersion;
 
-   numVersion = 500;
+   //numVersion = 500;
 
 
    if (string(argv[1]).find(".col") != string::npos)
@@ -293,6 +304,7 @@ int main(int argc, char* argv[])
    else
       return -1;
 
+	numVersion = 1000;
    cudaMallocManaged(&sequence, sizeof(int) * V * numVersion);
    cudaMallocManaged(&dimension,sizeof(int)*V);
    cudaMallocManaged(&address,sizeof(int)*V);
@@ -307,7 +319,7 @@ int main(int argc, char* argv[])
    GraphGenerator<<<256,1024>>>(matrix,dimension,address,h_graph,V);
    cudaDeviceSynchronize();
 
-   PermutationGenerator<<<1,500>>>(V,sequence,numVersion,V);
+   PermutationGenerator<<<1, numVersion>>>(V,sequence,numVersion,V);
    cudaDeviceSynchronize();
 
    RandomizedParallelGreedy<<<512,1024>>>
@@ -316,18 +328,23 @@ int main(int argc, char* argv[])
 
    cudaDeviceSynchronize();
 
-   CountColors(V,V*numVersion,result);
+	int numColors = INT_MAX;
+	int minIndex = 0;
+   CountColors(V,V*numVersion,result, numColors, minIndex);
    int finalSolution[V];
    for(int i = 0; i < V*numVersion; i++)
    {
      if(i%V == V-1)
      {
        finalSolution[i%V] = result[i];
-       if(!IsValidColoring(matrix,V,finalSolution)){cout<<"InValid Solution"<<endl;}
+       //if(!IsValidColoring(matrix,V,finalSolution)){cout<<"InValid Solution"<<endl;}
      }
      finalSolution[i%V] = result[i];
    }
-
+	cout << "Final Coloring" << endl;
+	for (int i = 0; i < V; i++)
+		cout << result[minIndex*V+i] << " ";
+	cout << "Number of colors: " << numColors << endl;
    cudaFree(h_graph);
    cudaFree(dimension);
    cudaFree(sequence);
