@@ -124,7 +124,8 @@ void CountColors(int V,int length, int* color, int &minColors, int &minIndex)
 {
 	//int minColors = INT_MAX;
 	//int minIndex;
-   int num_colors [length];
+   int *num_colors;
+	num_colors = (int*) malloc(sizeof(int) * length);
 	for (int i = 0; i < length; i++)
 	{
 		num_colors[i] = 0;
@@ -331,7 +332,8 @@ int main(int argc, char* argv[])
 	int numColors = INT_MAX;
 	int minIndex = 0;
    CountColors(V,V*numVersion,result, numColors, minIndex);
-   int finalSolution[V];
+   
+/*int finalSolution[V];
    for(int i = 0; i < V*numVersion; i++)
    {
      if(i%V == V-1)
@@ -341,10 +343,13 @@ int main(int argc, char* argv[])
      }
      finalSolution[i%V] = result[i];
    }
+*/
+	
 	cout << "Final Coloring" << endl;
 	for (int i = 0; i < V; i++)
 		cout << result[minIndex*V+i] << " ";
 	cout << "Number of colors: " << numColors << endl;
+	cout << IsValidColoring(matrix, V, result + minIndex*V) << endl;
    cudaFree(h_graph);
    cudaFree(dimension);
    cudaFree(sequence);
