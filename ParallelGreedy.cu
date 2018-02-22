@@ -86,96 +86,56 @@ __global__ void PermutationGenerator(int V, int*result, int numVersion, int shuf
 __device__ void Color(int* h_graph, int startingAddress,int curVertex, int a, int d, int* result)
 {
 
-  //int result[curVertex] = 1;
   int color = 1;
-  // printf("in color on vertex %i\n", curVertex);
-  // //printf("h_graph\n");
-  // for (int i = 0; i < d; i++)
-  //   printf("%i ", h_graph[a+i]);
-  // printf("\n");
-  // printf("dimension %i\n", d);
-  // printf("address %i\n", a);
   for (int i = 0; i < d; i++)
   {
     int other_vertex = h_graph[a + i];
     int other_color = result[startingAddress + other_vertex];
-    // printf("Comparing %i with vertex: %i\n", curVertex, other_vertex);
     if (color == other_color)
     {
-      // printf("clash with vertex %i\n", h_graph[a+i]);
       i = -1;
       color ++;
-      //atomicAdd(&color, 1);
       continue;
     }
   }
-  // printf("curVertex %i\n", curVertex);
-  // printf("Vertex %i receieves color %i\n", curVertex,color);
 result[startingAddress +curVertex] = color;
 }
+
 __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
                  int* address, int* sequence,int V, int numVersion, int* result)
 {
-  // printf("Sequence:\n");
-  // for (int i = 0; i < V *numVersion; i++)
-  // {
-  //   printf("%i", sequence[i]);
-  // }
-  // printf("1\n");
   int index = threadIdx.x + blockDim.x * blockIdx.x;
   int stride = blockDim.x * gridDim.x;
   int a,d;
 
-  // extern __shared__ int d_graph[];
-  // extern __shared__ int d_dimension[];
-  // extern __shared__ int d_address[];
-  /*
-  extern __shared__ int d_dimension[];
-  extern __shared__ int d_address[];
-  */
-// printf("2\n");
-  // int length = dimension[V - 1] + address[V - 1]; //length of h_graph;
+  extern __shared__  int  d_graph[];
+  //__shared__ unsigned int d_dimension[];
+  //__shared__ unsigned int d_address[];
+
+  // cudaMalloc
+  int length = dimension[V - 1] + address[V - 1]; //length of h_graph;
 
   //copy to shared memory:
 
-  //for(int i = index; i < length; i+= stride){d_graph[i] = h_graph[i];}
-// printf("3\n");
+  for(int i = index; i < length; i+= stride){d_graph[i] = h_graph[i];}
 
-  /*for(int i = index; i < V; i+= stride)
+/*  for(int i = index; i < V; i+= stride)
   {
     d_dimension[i] = dimension[i];
     d_address[i] = address[i];
   }*/
-  //end copy to shared memory
-  // printf("4\n");
 
+  //end copy to shared memory
 
   for(int j = index; j < numVersion; j +=stride)
   {
     for(int k = 0; k < V; k++)
     {
       int curVertex = sequence[j*V+k];
-      // printf("Current Vertex: %d\n", curVertex);
       a = address[curVertex]; //address of first neighbor
       d = dimension[curVertex];//number of neighbor
-      Color(h_graph,j*V,curVertex, a, d, result);
-
-      // int offset, degree, other;
-
-     //  printf("Vertex %d\n", k);
-     //  for (int i=0; i < V; i++)
-     //  {
-     //     offset = address[i];
-     //     degree = dimension[i];
-     //     for (int l=0; l < degree; l++)
-     //     {
-   	 // other = h_graph[offset+l];
-   	 // if (result[i] == result[other] && result[i] != 0)
-   	 //     printf("Vertex %d and %d have the same color %d\n", i, other, result[i]);
-     //     }
-     //  }
+      Color(d_graph,j*V,curVertex, a, d, result);
     }
-    // printf("nextVersion\n");
   }
 }
 //================================Utility Functions=======================================
@@ -283,6 +243,47 @@ void PrintMatrix(int* matrix, int M, int N) {
 }
 
 
+// Read MatrixMarket graphs
+// Assumes input nodes are numbered starting from 1
+void ReadMMFile(const char filename[], bool** graph, int* V)
+{
+   string line;
+   ifstream infile(filename);
+   if (infile.fail()) {
+      printf("Failed to open %s\n", filename);
+      return;
+   }
+
+   // Reading comments
+   while (getline(infile, line)) {
+      istringstream iss(line);
+      if (line.find('%') == string::npos)
+         break;
+   }
+
+   // Reading metadata
+   istringstream iss(line);
+   int num_rows, num_cols, num_edges;
+   iss >> num_rows >> num_cols >> num_edges;
+
+   *graph = new bool[num_rows * num_rows];
+   memset(*graph, 0, num_rows * num_rows * sizeof(bool));
+   *V = num_rows;
+
+   // Reading nodes
+   while (getline(infile, line)) {
+      istringstream iss(line);
+      int node1, node2, weight;
+      iss >> node1 >> node2 >> weight;
+
+      // Assume node numbering starts at 1
+      (*graph)[(node1 - 1) * num_rows + (node2 - 1)] = true;
+      (*graph)[(node2 - 1) * num_rows + (node1 - 1)] = true;
+   }
+   infile.close();
+}
+
+
 //===================================Main=======================================
 
 int main(int argc, char* argv[])
@@ -292,7 +293,7 @@ int main(int argc, char* argv[])
    int * sequence;
    int * dimension;
    int * address;
-   int * result; //Added
+   int * result;
    int V;
    int numVersion;
 
@@ -305,9 +306,9 @@ int main(int argc, char* argv[])
      cudaMallocManaged(&matrix,sizeof(int)*V*V);
      ReadColFile(argv[1],matrix,V);
    }
-
-   //else if (string(argv[1]).find(".mm") != string::npos)
-      //ReadMMFile(argv[1], &graph, &V);
+   /*
+   else if (string(argv[1]).find(".mm") != string::npos)
+      ReadMMFile(argv[1], matrix, V);*/
    else
       return -1;
 
@@ -333,55 +334,20 @@ int main(int argc, char* argv[])
    PermutationGenerator<<<1,500>>>(V,sequence,numVersion,V);
    cudaDeviceSynchronize();
 
-   RandomizedParallelGreedy<<<512,1024>>>
+   RandomizedParallelGreedy<<<512,1024,sizeof(int)* (dimension[V-1]+address[V-1])>>>
    (h_graph, dimension, address, sequence, V, numVersion, result);
 
 
    cudaDeviceSynchronize();
 
-
-   // cudaDeviceSynchronize();
-
-   //
-   // printf("dimensions\n");
-   // for (int i = 0; i < V; i++)
-   // {
-   //   cout << dimension[i] << " ";
-   // }
-   // cout << endl;
-   // printf("address\n");
-   // for (int i = 0; i < V; i++)
-   // {
-   //   cout << address[i] << " ";
-   // } cout << endl;
-   // for (int i =0; i < (dimension[V-1]+address[V-1]); i++){printf("%i ", h_graph[i]);}
-   //
-   // cout<<endl;
-   // printf("coloring:\n");
-   // for (int i = 0; i < V*numVersion; i++)
-   // {
-   //  cout << result[i] << " ";
-   //  if(i%V == V-1){cout<<endl;}
-   // }
-   //
-    // int counter0 = 0;
-    // printf("sequence:\n");
-    // for (int i = 0; i < V*numVersion; i++)
-    // {
-    //  cout << sequence[i] << " ";
-    //  if(i%V == V-1){cout<<"sequence no: "<<counter0++<<endl;}
-    // }
    CountColors(V,V*numVersion,result);
-   // int counter1 = 0;
+
    for(int i = 0; i < V*numVersion; i++)
    {
      if(i%V == V-1)
      {
-       //cout<<counter1++<<endl;
        finalSolution[i%V] = result[i];
        if(!IsValidColoring(matrix,V,finalSolution)){cout<<"InValid Solution"<<endl;}
-       // for (int j = 0; j < V; j++)
-       //    printf("%i at index%i\n", finalSolution[j], j);
      }
      finalSolution[i%V] = result[i];
    }
