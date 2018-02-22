@@ -108,25 +108,6 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
   int stride = blockDim.x * gridDim.x;
   int a,d;
 
-  extern __shared__  int  d_graph[];
-  //__shared__ unsigned int d_dimension[];
-  //__shared__ unsigned int d_address[];
-
-  // cudaMalloc
-  int length = dimension[V - 1] + address[V - 1]; //length of h_graph;
-
-  //copy to shared memory:
-
-  for(int i = index; i < length; i+= stride){d_graph[i] = h_graph[i];}
-
-/*  for(int i = index; i < V; i+= stride)
-  {
-    d_dimension[i] = dimension[i];
-    d_address[i] = address[i];
-  }*/
-
-  //end copy to shared memory
-
   for(int j = index; j < numVersion; j +=stride)
   {
     for(int k = 0; k < V; k++)
@@ -134,7 +115,7 @@ __global__ void RandomizedParallelGreedy(int* h_graph, int* dimension,
       int curVertex = sequence[j*V+k];
       a = address[curVertex]; //address of first neighbor
       d = dimension[curVertex];//number of neighbor
-      Color(d_graph,j*V,curVertex, a, d, result);
+      Color(h_graph,j*V,curVertex, a, d, result);
     }
   }
 }
@@ -297,7 +278,7 @@ int main(int argc, char* argv[])
    int V;
    int numVersion;
 
-   numVersion = 10;
+   numVersion = 500;
 
 
    if (string(argv[1]).find(".col") != string::npos)
@@ -318,8 +299,6 @@ int main(int argc, char* argv[])
    cudaMallocManaged(&result, sizeof(int) *V*numVersion);
 
 
-   int finalSolution[V];
-
    DimensionGenerator<<<256,1024>>>(matrix,dimension,address,V);
    cudaDeviceSynchronize();
    thrust::exclusive_scan(thrust::host,dimension,&dimension[V],address);
@@ -328,20 +307,17 @@ int main(int argc, char* argv[])
    GraphGenerator<<<256,1024>>>(matrix,dimension,address,h_graph,V);
    cudaDeviceSynchronize();
 
-   // for(int i = 0; i < dimension[V-1] + address[V-1] ; i++){cout<<h_graph[i];}
-   // cout<<endl;
-
    PermutationGenerator<<<1,500>>>(V,sequence,numVersion,V);
    cudaDeviceSynchronize();
 
-   RandomizedParallelGreedy<<<512,1024,sizeof(int)* (dimension[V-1]+address[V-1])>>>
+   RandomizedParallelGreedy<<<512,1024>>>
    (h_graph, dimension, address, sequence, V, numVersion, result);
 
 
    cudaDeviceSynchronize();
 
    CountColors(V,V*numVersion,result);
-
+   int finalSolution[V];
    for(int i = 0; i < V*numVersion; i++)
    {
      if(i%V == V-1)
