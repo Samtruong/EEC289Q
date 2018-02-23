@@ -296,7 +296,9 @@ int main(int argc, char* argv[])
    if (string(argv[1]).find(".col") != string::npos)
    {
      getDimension(argv[1], &V);
-     cudaMallocManaged(&matrix,sizeof(int)*V*V);
+     cudaError_t result = cudaMallocManaged(&matrix,sizeof(int)*V*V);
+     const char *error = cudaGetErrorString(result);
+     printf("%s\n", error);
      ReadColFile(argv[1],matrix,V);
    }
    /*
@@ -348,14 +350,15 @@ int finalSolution[V];
 /*	cout << "Final Coloring" << endl;
 	for (int i = 0; i < V; i++)
 		cout << result[minIndex*V+i] << " ";
-*/	cout << "Number of colors: " << numColors << endl;
-	cout << IsValidColoring(matrix, V, result + minIndex*V) << endl;
+*/	//cout << "Number of colors: " << numColors << endl;
+	//cout << IsValidColoring(matrix, V, result + minIndex*V) << endl;
+
+ *color = result;
   
  cudaFree(h_graph);
    cudaFree(dimension);
    cudaFree(sequence);
    cudaFree(address);
-   cudaFree(result);
    cudaFree(matrix);
    return 0;
 }
