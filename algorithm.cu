@@ -332,8 +332,6 @@ void GraphColoringGPU(const char filename[], int** color)
   for(int i = 0; i < V; i++){
     (*color)[i]=result[V*minIndex+i];
   }
-  cout << IsValidColoring(matrix, V, *color) << endl;
-
   cudaFree(h_graph);
   cudaFree(dimension);
   cudaFree(sequence);
